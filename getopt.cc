@@ -262,7 +262,7 @@ double PODParameter<double>::validate(const string &s) throw(ParameterRejected) 
 	if(*cstr == '\0') throw ParameterRejected("No argument given");
 
 	double d = strtod(cstr, &cstr);
-	if(*cstr != '\0') throw ParameterRejected("Expected long");
+	if(*cstr != '\0') throw ParameterRejected("Expected double");
 
 	return d;
 }
