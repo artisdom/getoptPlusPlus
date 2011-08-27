@@ -75,7 +75,6 @@ bool CommonParameter<SwitchingBehavior>::receive(ParserState& state) throw(Param
 
 					this->receiveSwitch();
 				} else {
-					cout << arg.substr(2, eq-2) << longOption() << (arg.substr(2, eq-2) != longOption()) << endl;
 					if(arg.substr(2, eq-2) != longOption())
 						return false;
 

@@ -89,12 +89,25 @@ namespace vlofgren {
 }
 typedef PODParameter<enum RockPaperScissor> RockPaperScissorParameter;
 
+
+/*
+ *
+ *  Dummy program
+ *
+ */
+
+
 int main(int argc, const char* argv[]) {
+
+	// Create a parser
+
 	OptionsParser optp("An example program (that also runs some tests)");
 
 	/* An alternative option is to simply extend the options parser and set all this up
 	 * in the constructor.
 	 */
+
+	// Create some parameters for the program
 	SwitchParameter f('f', "foo", 	"Enable the foo system (no argument)");
 	StringParameter b('b', "bar", 	"Enable the bar system (string argument)");
 	PODParameter<double> z('z', "baz", "Enable the baz system (floating point argument)");
@@ -104,7 +117,10 @@ int main(int argc, const char* argv[]) {
 
 	SwitchParameter h('h', "help", "Display help screen");
 
+	// Set a default value for 'i'
 	i.setDefault(15);
+
+	// Register the parameters with the parser
 
 	optp.addParameter(&f);
 	optp.addParameter(&b);
@@ -116,13 +132,17 @@ int main(int argc, const char* argv[]) {
 
 
 	try {
+		// Parse argv
 		optp.parse(argc, argv);
 
+		// Test for the help flag
 		if(h.isSet()) {
 			optp.usage();
 			return EXIT_SUCCESS;
 		}
 
+
+		// Print out what values the parameters were given
 
 		cout << "The following parameters were set:" << endl;
 
@@ -154,9 +174,6 @@ int main(int argc, const char* argv[]) {
 			cout << "not set" << endl;
 		}
 
-
-
-
 	} catch(Parameter::ParameterRejected &p){
 		// This will happen if the user has fed some malformed parameter to the program
 		cerr << p.what() << endl;
@@ -170,6 +187,7 @@ int main(int argc, const char* argv[]) {
 	}
 
 
+	// List what non-parameter options were given (typically files)
 	cout << "The following file arguments were given:" << endl;
 
 	vector<string> files = optp.getFiles();

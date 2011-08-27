@@ -21,8 +21,8 @@
 #include <string>
 #include <climits>
 #include <cstdlib>
-#include <iostream>
 #include <sstream>
+#include <iostream>
 
 #ifndef GETOPTPP_H
 #define GETOPTPP_H

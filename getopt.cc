@@ -18,7 +18,6 @@
 
 #include "getopt.h"
 
-#include <iostream>
 
 namespace vlofgren {
 
