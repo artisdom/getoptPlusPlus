@@ -21,13 +21,19 @@
 #include <string>
 #include <climits>
 #include <cstdlib>
+#include <iostream>
+
 #ifndef GETOPTPP_H
 #define GETOPTPP_H
+
+namespace vlofgren {
 
 class Parameter;
 class ParserState;
 
 using namespace std;
+
+
 class OptionsParser {
 public:
 	OptionsParser();
@@ -37,7 +43,7 @@ public:
 	void parse(int argc, const char* argv[]) throw(runtime_error);
 
 	void usage(const string &description) const;
-	string programName() const;
+	const string& programName() const;
 
 	const vector<string>& getFiles() const;
 protected:
@@ -52,6 +58,7 @@ protected:
  * Corresponds to the state of the parsing, basically just a wrapper
  * for a const_iterator that handles nicer.
  */
+
 class ParserState {
 public:
 	const string peek() const;
@@ -79,56 +86,113 @@ public:
 	class ParameterRejected : public runtime_error {
 	public:
 		ParameterRejected(const string& s) : runtime_error(s) {}
+		ParameterRejected() : runtime_error("") {}
 	};
 
 	class UnexpectedArgument : public ParameterRejected {
 	public:
 		UnexpectedArgument(const string &s) : ParameterRejected(s) {}
+		UnexpectedArgument() {}
 	};
 
 	class ExpectedArgument : public ParameterRejected {
-		public:
-			ExpectedArgument(const string &s) : ParameterRejected(s) {}
+	public:
+		ExpectedArgument(const string &s) : ParameterRejected(s) {}
+		ExpectedArgument() {}
 	};
 
 	Parameter(char shortOption, const char *longOption, 
 		  const char *description);
+
 	virtual ~Parameter();
 
-	virtual const string usageLine() const = 0;
+	virtual string usageLine() const = 0;
 
-	const char* description() const;
-	const char* longOption() const;
+	const string& description() const;
+	const string& longOption() const;
 	char shortOption() const;
 protected:
-	virtual bool receive(ParserState& state) throw(ParameterRejected);
-	virtual void receiveShort(ParserState &state, unsigned int argument_offset) throw (ParameterRejected) = 0;
-	virtual void receiveLong(ParserState &state, unsigned int argument_offset) throw (ParameterRejected) = 0;
+	virtual bool receive(ParserState& state) throw(ParameterRejected) = 0;
 
 	friend class OptionsParser;
 
 	char fshortOption;
-	const char *flongOption;
-	const char *fdescription;
+	const string flongOption;
+	const string fdescription;
 private:
 
 };
 
+/*
+ *
+ * Abstract base class of all parameters
+ *
+ */
+
+class Switchable;
+
+template<typename SwitchingBehavior=Switchable>
+class CommonParameter : public Parameter, protected SwitchingBehavior {
+public:
+	virtual bool isSet() const;
+
+	CommonParameter(char shortOption, const char *longOption,
+			const char* description);
+	virtual ~CommonParameter();
+
+	virtual string usageLine() const;
+
+protected:
+	virtual bool receive(ParserState& state) throw(ParameterRejected);
+
+	virtual void receiveSwitch() throw (ParameterRejected) = 0;
+	virtual void receiveArgument(const string& argument) throw (ParameterRejected) = 0;
+};
+
+
+class Switchable {
+public:
+	class SwitchingError : public Parameter::ParameterRejected {};
+
+	virtual bool isSet() const;
+	virtual void set() throw (SwitchingError);
+
+	virtual ~Switchable();
+	Switchable();
+private:
+	bool fset;
+};
+
+class UniquelySwitchable : public Switchable {
+public:
+
+	virtual ~UniquelySwitchable();
+	virtual void set() throw (SwitchingError);
+};
+
+class PresettableUniquelySwitchable : public UniquelySwitchable {
+public:
+	virtual bool isSet() const;
+	virtual void set() throw (Switchable::SwitchingError);
+	virtual void preset();
+
+	virtual ~PresettableUniquelySwitchable();
+private:
+	Switchable fpreset;
+};
+
 /* Parameter that does not take an argument, and throws an exception
  * if an argument is given */
-class SwitchParameter : public Parameter {
+
+class SwitchParameter : public CommonParameter<Switchable> {
 public:
 	SwitchParameter(char shortOption, const char *longOption,
 			const char* description);
 	virtual ~SwitchParameter();
-	virtual const string usageLine() const;
-
-	bool isSet() const;
 
 protected:
-	virtual void receiveShort(ParserState &state, unsigned int argument_offset) throw (ParameterRejected);
-	virtual void receiveLong(ParserState &state, unsigned int argument_offset) throw (ParameterRejected);
-	bool fset;
+	virtual void receiveSwitch() throw (Parameter::ParameterRejected);
+	virtual void receiveArgument(const string& argument) throw (Parameter::ParameterRejected);
 };
 
 /* Parameter that takes an argument, but does not perform an sort of validation.
@@ -136,19 +200,18 @@ protected:
  * Throws an exception if no argument is given.
  *
  *  */
-class StringParameter: public SwitchParameter {
+class StringParameter: public CommonParameter<UniquelySwitchable> {
 public:
 	StringParameter(char shortOption, const char *longOption,
 			const char* description);
 	virtual ~StringParameter();
 
 	const string & stringValue() const;
-	virtual const string usageLine() const;
+	virtual string usageLine() const;
 
 protected:
-	virtual void receiveShort(ParserState &state, unsigned int argument_offset) throw (ParameterRejected);
-	virtual void receiveLong(ParserState &state, unsigned int argument_offset) throw (ParameterRejected);
-	virtual void receiveArgument(const string &argument) throw (ParameterRejected);
+	virtual void receiveSwitch() throw (Parameter::ParameterRejected);
+	virtual void receiveArgument(const string& argument) throw (Parameter::ParameterRejected);
 
 	string argument;
 };
@@ -159,10 +222,8 @@ protected:
  * it to other types is as easy as partial template specialization.
  */
 
-
-
 template<typename T>
-class PODParameter : public StringParameter {
+class PODParameter : public CommonParameter<PresettableUniquelySwitchable> {
 public:
 	PODParameter(char shortOption, const char *longOption,
 			const char* description);
@@ -175,43 +236,22 @@ public:
 	operator T() const;
 	void setDefault(T value);
 
+	std::string usageLine() const;
 protected:
 	T validate(const string& s) throw (ParameterRejected);
 	void receiveArgument(const string &argument) throw(ParameterRejected);
+	void receiveSwitch() throw (Parameter::ParameterRejected);
 
 	T value;
 };
 
-template<typename T>
-PODParameter<T>::PODParameter(char shortOption, const char *longOption,
-		const char* description) : StringParameter(shortOption, longOption, description) {}
-template<typename T>
-PODParameter<T>::~PODParameter() {}
 
-template<typename T>
-PODParameter<T>::operator T() const { return getValue(); }
+typedef PODParameter<int> IntParameter;
+typedef PODParameter<long> LongParameter;
+typedef PODParameter<double> DoubleParameter;
 
-template<typename T>
-void PODParameter<T>::setDefault(T value) {
-	fset = true;
-	this->value = value;
-}
+#include "parameter.include.cc"
 
-template<typename T>
-T PODParameter<T>::getValue() const {
-	if(!isSet()) {
-		throw runtime_error(
-				string("Attempting to retreive the argument of parameter") + longOption() + " but it hasn't been set!");
-	}
-	return value;
-
-}
-
-template<typename T>
-void PODParameter<T>::receiveArgument(const string &argument) throw(ParameterRejected) {
-	value = validate(argument);
-}
-
-
+} //namespace
 
 #endif

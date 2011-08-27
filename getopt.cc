@@ -20,6 +20,16 @@
 
 #include <iostream>
 
+namespace vlofgren {
+
+/*
+ *
+ * Class OptionsParser
+ *
+ *
+ */
+
+
 OptionsParser::OptionsParser() {}
 OptionsParser::~OptionsParser() {}
 
@@ -86,10 +96,16 @@ const vector<string>& OptionsParser::getFiles() const {
 	return files;
 }
 
-string OptionsParser::programName() const {
+const string& OptionsParser::programName() const {
 	return argv0;
 }
 
+/*
+ *
+ * Class ParserState
+ *
+ *
+ */
 
 
 ParserState::ParserState(OptionsParser &opts, vector<string>& args) :
@@ -119,6 +135,15 @@ bool ParserState::end() const {
 }
 
 
+/*
+ *
+ * Class Parameter
+ *
+ *
+ */
+
+
+
 Parameter::Parameter(char shortOption, const char *longOption, const char *description) :
 	fshortOption(shortOption), flongOption(longOption), fdescription(description)
 {
@@ -127,99 +152,84 @@ Parameter::Parameter(char shortOption, const char *longOption, const char *descr
 
 Parameter::~Parameter() {}
 
-const char* Parameter::description() const { return fdescription; }
-const char* Parameter::longOption() const { return flongOption; }
+const string& Parameter::description() const { return fdescription; }
+const string& Parameter::longOption() const { return flongOption; }
 char Parameter::shortOption() const { return fshortOption; }
 
-bool Parameter::receive(ParserState& state) throw(ParameterRejected) {
+/*
+ *
+ * Class Switchable
+ *
+ *
+ */
 
-	const string arg = state.get();
+bool Switchable::isSet() const { return fset; }
+void Switchable::set() throw (Switchable::SwitchingError) { fset = true; }
+Switchable::~Switchable() {};
+Switchable::Switchable() : fset(false) {}
 
-	try {
-		if(arg.at(0) != '-') return false;
-		
-		if(arg.at(1) == '-') { /* Long form parameter */
-			unsigned int eq = arg.find_first_of("=");
-			string option = arg.substr(2, ((eq == string::npos) ? arg.length() : eq)-2);
+void UniquelySwitchable::set() throw (Switchable::SwitchingError) {
+	if(UniquelySwitchable::isSet()) throw Switchable::SwitchingError();
+	Switchable::set();
+}
+UniquelySwitchable::~UniquelySwitchable() {}
 
-			if(option != longOption()) return false;
 
-			if(eq != string::npos) eq++;
-			this->receiveLong(state, eq);
-			return true;
-		}
-
-		if(arg.at(1) == shortOption()) {
-			/* Matched argument on the form -f or -fsomething */
-			if(arg.length() == 2) { /* -f */
-				this->receiveShort(state, string::npos);
-				return true;
-			} else { /* -fsomething */
-				this->receiveShort(state, 2);
-				return true;
-			}
-		}
-	} catch(out_of_range& o) {
-		return false;
-	}
-
-	return false;
+PresettableUniquelySwitchable::~PresettableUniquelySwitchable() {}
+bool PresettableUniquelySwitchable::isSet() const {
+	return UniquelySwitchable::isSet() || fpreset.isSet();
+}
+void PresettableUniquelySwitchable::set() throw (Switchable::SwitchingError)
+{
+	UniquelySwitchable::set();
+}
+void PresettableUniquelySwitchable::preset() {
+	fpreset.set();
 }
 
+/*
+ *
+ * Class SwitchParameter
+ *
+ *
+ */
 
 
 SwitchParameter::SwitchParameter(char shortOption, const char *longOption,
-			const char* description) : Parameter(shortOption, longOption, description), fset(false){}
+			const char* description) : CommonParameter<Switchable>(shortOption, longOption, description) {}
 SwitchParameter::~SwitchParameter() {}
 
-
-bool SwitchParameter::isSet() const { return fset; }
-
-const string SwitchParameter::usageLine() const {
-	return string("-") + shortOption() + "\t| --" + longOption();
+void SwitchParameter::receiveSwitch() throw(Parameter::ParameterRejected) {
+	set();
 }
 
-void SwitchParameter::receiveShort(ParserState &state, unsigned int argument_offset) throw (ParameterRejected) {
-	if(argument_offset != string::npos) throw UnexpectedArgument(string("-") + shortOption());
-	fset = true;
-}
-void SwitchParameter::receiveLong(ParserState &state, unsigned int argument_offset) throw (ParameterRejected) {
-	if(argument_offset != string::npos) throw UnexpectedArgument(string("--") +longOption());
-	fset = true;
+void SwitchParameter::receiveArgument(const string &arg) throw(Parameter::ParameterRejected) {
+	throw UnexpectedArgument();
 }
 
 StringParameter::StringParameter(char shortOption, const char *longOption,
-			const char* description) : SwitchParameter(shortOption, longOption, description) {}
+			const char* description) : CommonParameter<UniquelySwitchable>(shortOption, longOption, description) {}
 StringParameter::~StringParameter() {}
 
-const string StringParameter::usageLine() const {
+string StringParameter::usageLine() const {
 	return string("-") + shortOption() + "arg\t| --" + longOption() + "=arg";
 }
 
+/*
+ *
+ * Class StringParameter
+ *
+ *
+ */
 
-void StringParameter::receiveShort(ParserState &state, unsigned int argument_offset) throw (ParameterRejected) {
-	if(argument_offset == string::npos) throw ExpectedArgument(string("-") + shortOption());
-	try {
-		this->receiveArgument(state.get().substr(argument_offset));
-	} catch(ParameterRejected& r) {
-		throw ParameterRejected(string("-") + shortOption() + ":" + r.what());
-	}
-	fset = true;
+
+void StringParameter::receiveSwitch() throw (Parameter::ParameterRejected) {
+	throw ParameterRejected();
 }
 
-void StringParameter::receiveLong(ParserState &state, unsigned int argument_offset) throw (ParameterRejected) {
-	if(argument_offset == string::npos) throw ExpectedArgument(string("--") + longOption());
-	try {
-		this->receiveArgument(state.get().substr(argument_offset));
-	} catch(ParameterRejected &r) {
-		throw ParameterRejected(string("--") + longOption() + ":" + r.what());
-	}
-	fset = true;
-}
-
-void StringParameter::receiveArgument(const string &argument) throw (ParameterRejected) {
-	this->argument = argument;
-
+void StringParameter::receiveArgument(const string &s) throw (Parameter::ParameterRejected) {
+	this->argument = s;
+	set();
 }
 
 const string & StringParameter::stringValue() const { return argument; }
@@ -227,7 +237,8 @@ const string & StringParameter::stringValue() const { return argument; }
 
 
 template<>
-int PODParameter<int>::validate(const string &s) throw(ParameterRejected) {
+int PODParameter<int>::validate(const string &s) throw(Parameter::ParameterRejected)
+{
 	// This is sadly necessary for strto*-functions to operate on
 	// const char*. The function doesn't write to the memory, though,
 	// so it's quite safe.
@@ -246,7 +257,8 @@ int PODParameter<int>::validate(const string &s) throw(ParameterRejected) {
 }
 
 template<>
-long PODParameter<long>::validate(const string &s) throw(ParameterRejected) {
+long PODParameter<long>::validate(const string &s) throw(Parameter::ParameterRejected)
+{
 	char* cstr = const_cast<char*>(s.c_str());
 	if(*cstr == '\0') throw ParameterRejected("No argument given");
 
@@ -257,7 +269,8 @@ long PODParameter<long>::validate(const string &s) throw(ParameterRejected) {
 }
 
 template<>
-double PODParameter<double>::validate(const string &s) throw(ParameterRejected) {
+double PODParameter<double>::validate(const string &s) throw(Parameter::ParameterRejected)
+{
 	char* cstr = const_cast<char*>(s.c_str());
 	if(*cstr == '\0') throw ParameterRejected("No argument given");
 
@@ -266,3 +279,5 @@ double PODParameter<double>::validate(const string &s) throw(ParameterRejected) 
 
 	return d;
 }
+
+} //namespace
