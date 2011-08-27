@@ -23,6 +23,23 @@
  * compile this file directly!
  */
 
+template<typename T>
+T &ParameterSet::add(char shortName, const char* longName, const char* description) {
+	T* p = new T(shortName, longName, description);
+	parameters.insert(p);
+	return *p;
+}
+
+template<typename T>
+T Parameter::get() const{
+	const PODParameter<T> *ppt = dynamic_cast<const PODParameter<T>*>(this);
+	if(ppt) {
+		return ppt->getValue();
+	}
+	throw new runtime_error("Type conversion not possible");
+}
+
+
 /*
  *
  * Class CommonParameter implementation
@@ -126,11 +143,16 @@ bool CommonParameter<SwitchingBehavior>::receive(ParserState& state) throw(Param
 
 
 
+/*
+ * PODParameter stuff
+ *
+ */
 
 
 template<typename T>
 PODParameter<T>::PODParameter(char shortOption, const char *longOption,
 		const char* description) : CommonParameter<PresettableUniquelySwitchable>(shortOption, longOption, description) {}
+
 template<typename T>
 PODParameter<T>::~PODParameter() {}
 
@@ -174,7 +196,7 @@ void PODParameter<T>::receiveSwitch() throw (Parameter::ParameterRejected) {
 template<typename T>
 void PODParameter<T>::receiveArgument(const string &argument) throw(Parameter::ParameterRejected) {
 	set();
-	value = validate(argument);
+	value = this->validate(argument);
 }
 
 

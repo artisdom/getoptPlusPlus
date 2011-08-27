@@ -25,18 +25,24 @@
 using namespace std;
 using namespace vlofgren;
 
+#ifndef DOXYGEN_SHOULD_SKIP_THIS
+
 /*
  *
- * Two ways of adding new parameter types (you only need to override two functions)
+ * This is one way of adding new parameter types,
+ * inheriting existing types and adding new validation.
+ *
+ * In this case, StringParameter (which is a typedef of PODParameter<string> gets
+ * a new validator that only accepts strings with only letters.
  *
  */
 
 
-class AlphabeticParameter : public CommonParameter<UniquelySwitchable> {
+class AlphabeticParameter : public StringParameter {
 public:
 	AlphabeticParameter(char shortName, const char* longName, const char* description) :
-		CommonParameter<UniquelySwitchable>(shortName, longName, description) {}
-
+		StringParameter(shortName, longName, description) {}
+	virtual ~AlphabeticParameter() {}
 
 	void receiveSwitch() throw(Parameter::ParameterRejected) {
 		throw Parameter::ParameterRejected();
@@ -46,20 +52,14 @@ public:
 	/* isalpha may be a macro */
 	static bool isNotAlpha(char c) { return !isalpha(c); }
 
-	void receiveArgument(const string& arg) throw(Parameter::ParameterRejected) {
+	virtual string validate(const string& arg) throw(Parameter::ParameterRejected) {
 		int nonalpha = count_if(arg.begin(), arg.end(), isNotAlpha);
 
+
 		if(nonalpha) throw Parameter::ParameterRejected("I only want numbers");
-
-		value = arg;
-
-		set();
+		else return arg;
 	}
 
-	const string& getValue() const { return value; }
-
-private:
-	string value;
 };
 
 /*
@@ -102,74 +102,65 @@ int main(int argc, const char* argv[]) {
 	// Create a parser
 
 	OptionsParser optp("An example program (that also runs some tests)");
+	ParameterSet& ps = optp.getParameters();
 
 	/* An alternative option is to simply extend the options parser and set all this up
 	 * in the constructor.
 	 */
 
-	// Create some parameters for the program
-	SwitchParameter f('f', "foo", 	"Enable the foo system (no argument)");
-	StringParameter b('b', "bar", 	"Enable the bar system (string argument)");
-	PODParameter<double> z('z', "baz", "Enable the baz system (floating point argument)");
-	PODParameter<int> i('i', "foobar", "Enable the foobar system (integer argument)");
-	AlphabeticParameter alpha('a', "alpha", "Custom parameter that requires a string of letters");
-	RockPaperScissorParameter rps('r', "rps", "Takes the values rock, paper and scissor");
+	ps.add<SwitchParameter>('f', "foo", "Enable the foo system (no argument)");
+	ps.add<StringParameter>('b', "bar", "Enable the bar system (string argument)");
+	ps.add<PODParameter<double> >('z', "baz", "Enable the baz system (floating point argument");
 
-	SwitchParameter h('h', "help", "Display help screen");
-
-	// Set a default value for 'i'
+	PODParameter<int>& i = ps.add<PODParameter<int> >('i', "foobar", "Enable the foobar system (integer argument");
 	i.setDefault(15);
 
+	ps.add<AlphabeticParameter>('a', "alpha", "Custom parameter that requires a string of letters");
+	ps.add<RockPaperScissorParameter>('r', "rps", "Takes the values rock, paper or scissor");
+	ps.add<SwitchParameter>('h', "help", "Display help screen");
+
+
 	// Register the parameters with the parser
-
-	optp.addParameter(&f);
-	optp.addParameter(&b);
-	optp.addParameter(&z);
-	optp.addParameter(&i);
-	optp.addParameter(&alpha);
-	optp.addParameter(&rps);
-	optp.addParameter(&h);
-
 
 	try {
 		// Parse argv
 		optp.parse(argc, argv);
 
 		// Test for the help flag
-		if(h.isSet()) {
+		if(ps['h'].isSet()) {
 			optp.usage();
 			return EXIT_SUCCESS;
 		}
-
 
 		// Print out what values the parameters were given
 
 		cout << "The following parameters were set:" << endl;
 
-		cout << "foo: " << (f.isSet() ? "true" : "false") << endl;
-		cout << "bar: \"" << b.stringValue() << "\""<< endl;
+		cout << "foo: " << (ps['f'].isSet() ? "true" : "false") << endl;
+		cout << "bar: \"" << ps['b'].get<string>() << "\""<< endl;
 		cout << "baz: ";
-		if(z.isSet()) {
-			cout << z.getValue() << endl;
+
+		if(ps['z'].isSet()) {
+			cout << ps['z'].get<double>() << endl;
 		} else {
 			cout << "not set" << endl;
 		}
 		cout << "foobar: ";
-		if(i.isSet()) {
-			cout << i.getValue() << endl;
+		if(ps['i'].isSet()) {
+			cout << ps['i'].get<int>() << endl;
 		} else {
 			cout << "not set" << endl;
 		}
 		cout << "alpha: ";
-		if(alpha.isSet()) {
-			cout << alpha.getValue() << endl;
+		if(ps["alpha"].isSet()) {
+			cout << ps["alpha"].get<string>() << endl;
 		} else {
 			cout << "not set" << endl;
 		}
 
 		cout << "rps: ";
-		if(rps.isSet()) {
-			cout << rps.getValue() << endl;
+		if(ps["rps"].isSet()) {
+			cout << ps["rps"].get<enum RockPaperScissor>() << endl;
 		} else {
 			cout << "not set" << endl;
 		}
@@ -199,3 +190,4 @@ int main(int argc, const char* argv[]) {
 	return EXIT_SUCCESS;
 }
 
+#endif

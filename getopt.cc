@@ -17,7 +17,7 @@
 
 
 #include "getopt.h"
-
+#include <stdexcept>
 
 namespace vlofgren {
 
@@ -32,8 +32,8 @@ namespace vlofgren {
 OptionsParser::OptionsParser(const char* programDesc) : fprogramDesc(programDesc) {}
 OptionsParser::~OptionsParser() {}
 
-void OptionsParser::addParameter(Parameter * const param) {
-	parameters.insert(param);
+ParameterSet& OptionsParser::getParameters() {
+	return parameters;
 }
 
 void OptionsParser::parse(int argc, const char* argv[]) throw(runtime_error)
@@ -50,13 +50,13 @@ void OptionsParser::parse(int argc, const char* argv[]) throw(runtime_error)
 
 		set<Parameter*>::iterator i;
 
-		for(i = parameters.begin();
-				i != parameters.end(); i++)
+		for(i = parameters.parameters.begin();
+				i != parameters.parameters.end(); i++)
 		{
 			if((*i)->receive(state)) break;
 		}
 
-		if(i == parameters.end()) {
+		if(i == parameters.parameters.end()) {
 			string file = state.get();
 			if(file == "--") {
 				state.advance();
@@ -82,8 +82,8 @@ void OptionsParser::usage() const {
 	cerr << "Parameters: " << endl;
 
 	set<Parameter*>::iterator i;
-	for(i = parameters.begin();
-			i != parameters.end(); i++)
+	for(i = parameters.parameters.begin();
+			i != parameters.parameters.end(); i++)
 	{
 		cerr.width(30);
 		cerr << left << "    " + (*i)->usageLine();
@@ -102,6 +102,46 @@ const vector<string>& OptionsParser::getFiles() const {
 const string& OptionsParser::programName() const {
 	return argv0;
 }
+
+/*
+ * Parameter set
+ *
+ *
+ */
+
+ParameterSet::ParameterSet(const ParameterSet& ps) {
+	throw new runtime_error("ParameterSet not copyable");
+}
+
+ParameterSet::~ParameterSet() {
+	for(set<Parameter*>::iterator i = parameters.begin();
+			i != parameters.end(); i++)
+	{
+		delete *i;
+	}
+
+}
+
+/* The typical use case for command line arguments makes linear searching completely
+ * acceptable here.
+ */
+
+Parameter& ParameterSet::operator[](char c) const {
+	for(set<Parameter*>::const_iterator i = parameters.begin(); i!= parameters.end(); i++) {
+		if((*i)->shortOption() == c) return *(*i);
+	}
+	throw out_of_range("ParameterSet["+c+string("]"));
+}
+
+
+Parameter& ParameterSet::operator[](const string& param) const {
+	for(set<Parameter*>::const_iterator i = parameters.begin(); i!= parameters.end(); i++) {
+		if((*i)->longOption() == param) return *(*i);
+	}
+	throw out_of_range("ParameterSet["+param+"]");
+}
+
+
 
 /*
  *
@@ -167,13 +207,16 @@ char Parameter::shortOption() const { return fshortOption; }
  */
 
 bool Switchable::isSet() const { return fset; }
-void Switchable::set() throw (Switchable::SwitchingError) { fset = true; }
 Switchable::~Switchable() {};
 Switchable::Switchable() : fset(false) {}
 
+void MultiSwitchable::set() throw (Switchable::SwitchingError) { fset = true; }
+MultiSwitchable::~MultiSwitchable() {}
+
+
 void UniquelySwitchable::set() throw (Switchable::SwitchingError) {
 	if(UniquelySwitchable::isSet()) throw Switchable::SwitchingError();
-	Switchable::set();
+	fset = true;
 }
 UniquelySwitchable::~UniquelySwitchable() {}
 
@@ -199,7 +242,7 @@ void PresettableUniquelySwitchable::preset() {
 
 
 SwitchParameter::SwitchParameter(char shortOption, const char *longOption,
-			const char* description) : CommonParameter<Switchable>(shortOption, longOption, description) {}
+			const char* description) : CommonParameter<MultiSwitchable>(shortOption, longOption, description) {}
 SwitchParameter::~SwitchParameter() {}
 
 void SwitchParameter::receiveSwitch() throw(Parameter::ParameterRejected) {
@@ -210,40 +253,11 @@ void SwitchParameter::receiveArgument(const string &arg) throw(Parameter::Parame
 	throw UnexpectedArgument();
 }
 
-StringParameter::StringParameter(char shortOption, const char *longOption,
-			const char* description) : CommonParameter<UniquelySwitchable>(shortOption, longOption, description) {}
-StringParameter::~StringParameter() {}
-
-string StringParameter::usageLine() const {
-	stringstream strstr;
-
-	strstr.width(10);
-	strstr << left<< string("-") + shortOption() +"arg";
-	strstr.width(20);
-	strstr << left << "--" + longOption() + "=arg";
-
-	return strstr.str();
+template<>
+PODParameter<string>::PODParameter(char shortOption, const char *longOption,
+		const char* description) : CommonParameter<PresettableUniquelySwitchable>(shortOption, longOption, description) {
+	preset();
 }
-
-/*
- *
- * Class StringParameter
- *
- *
- */
-
-
-void StringParameter::receiveSwitch() throw (Parameter::ParameterRejected) {
-	throw ParameterRejected();
-}
-
-void StringParameter::receiveArgument(const string &s) throw (Parameter::ParameterRejected) {
-	this->argument = s;
-	set();
-}
-
-const string & StringParameter::stringValue() const { return argument; }
-
 
 
 template<>
@@ -289,5 +303,12 @@ double PODParameter<double>::validate(const string &s) throw(Parameter::Paramete
 
 	return d;
 }
+
+template<>
+string PODParameter<string>::validate(const string &s) throw(Parameter::ParameterRejected)
+{
+	return s;
+}
+
 
 } //namespace
