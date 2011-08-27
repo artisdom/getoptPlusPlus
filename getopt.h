@@ -22,6 +22,7 @@
 #include <climits>
 #include <cstdlib>
 #include <iostream>
+#include <sstream>
 
 #ifndef GETOPTPP_H
 #define GETOPTPP_H
@@ -36,18 +37,20 @@ using namespace std;
 
 class OptionsParser {
 public:
-	OptionsParser();
+	OptionsParser(const char *programDesc);
 	virtual ~OptionsParser();
 
 	void addParameter(Parameter * const param);
 	void parse(int argc, const char* argv[]) throw(runtime_error);
 
-	void usage(const string &description) const;
+	void usage() const;
 	const string& programName() const;
 
 	const vector<string>& getFiles() const;
 protected:
 	string argv0;
+	string fprogramDesc;
+
 	set<Parameter*> parameters;
 	vector<string> files;
 

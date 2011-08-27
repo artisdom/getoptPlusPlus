@@ -44,7 +44,14 @@ bool CommonParameter<SwitchingBehavior>::isSet() const{
 
 template<typename SwitchingBehavior>
 string CommonParameter<SwitchingBehavior>::usageLine() const {
-	return string("-") + shortOption() + "\t| --" + longOption();
+	stringstream strstr;
+
+		strstr.width(10);
+		strstr << left<< string("-") + shortOption();
+		strstr.width(20);
+		strstr << left << "--" + longOption();
+
+		return strstr.str();
 }
 
 
@@ -150,7 +157,14 @@ T PODParameter<T>::getValue() const {
 
 template<typename T>
 string PODParameter<T>::usageLine() const {
-	return string("-") + shortOption() + "arg\t| --" + longOption() + "=arg";
+	stringstream strstr;
+
+	strstr.width(10);
+	strstr << left<< string("-") + shortOption() +"arg";
+	strstr.width(20);
+	strstr << left << "--" + longOption() + "=arg";
+
+	return strstr.str();
 }
 
 template<typename T>

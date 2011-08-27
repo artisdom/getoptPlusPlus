@@ -90,7 +90,7 @@ namespace vlofgren {
 typedef PODParameter<enum RockPaperScissor> RockPaperScissorParameter;
 
 int main(int argc, const char* argv[]) {
-	OptionsParser optp;
+	OptionsParser optp("An example program (that also runs some tests)");
 
 	/* An alternative option is to simply extend the options parser and set all this up
 	 * in the constructor.
@@ -101,6 +101,9 @@ int main(int argc, const char* argv[]) {
 	PODParameter<int> i('i', "foobar", "Enable the foobar system (integer argument)");
 	AlphabeticParameter alpha('a', "alpha", "Custom parameter that requires a string of letters");
 	RockPaperScissorParameter rps('r', "rps", "Takes the values rock, paper and scissor");
+
+	SwitchParameter h('h', "help", "Display help screen");
+
 	i.setDefault(15);
 
 	optp.addParameter(&f);
@@ -109,10 +112,16 @@ int main(int argc, const char* argv[]) {
 	optp.addParameter(&i);
 	optp.addParameter(&alpha);
 	optp.addParameter(&rps);
+	optp.addParameter(&h);
 
 
 	try {
 		optp.parse(argc, argv);
+
+		if(h.isSet()) {
+			optp.usage();
+			return EXIT_SUCCESS;
+		}
 
 
 		cout << "The following parameters were set:" << endl;
@@ -151,7 +160,7 @@ int main(int argc, const char* argv[]) {
 	} catch(Parameter::ParameterRejected &p){
 		// This will happen if the user has fed some malformed parameter to the program
 		cerr << p.what() << endl;
-		optp.usage("An example program (that also runs some tests)");
+		optp.usage();
 		return EXIT_FAILURE;
 	} catch(runtime_error &e) {
 		// This will happen if you try to access a parameter that hasn't been set
@@ -165,7 +174,7 @@ int main(int argc, const char* argv[]) {
 
 	vector<string> files = optp.getFiles();
 	for(vector<string>::iterator i = files.begin(); i != files.end(); i++) {
-		cout << "File: " << *i << endl;
+		cout << "\t" << *i << endl;
 	}
 
 

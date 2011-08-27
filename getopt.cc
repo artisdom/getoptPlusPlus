@@ -30,7 +30,7 @@ namespace vlofgren {
  */
 
 
-OptionsParser::OptionsParser() {}
+OptionsParser::OptionsParser(const char* programDesc) : fprogramDesc(programDesc) {}
 OptionsParser::~OptionsParser() {}
 
 void OptionsParser::addParameter(Parameter * const param) {
@@ -75,10 +75,10 @@ void OptionsParser::parse(int argc, const char* argv[]) throw(runtime_error)
 
 }
 
-void OptionsParser::usage(const string& description) const { // XXX:STUB
+void OptionsParser::usage() const {
 	cerr << "Usage: " << programName() << " arguments" << endl;
 
-	cerr << description << endl << endl;
+	cerr << fprogramDesc << endl << endl;
 
 	cerr << "Parameters: " << endl;
 
@@ -86,7 +86,11 @@ void OptionsParser::usage(const string& description) const { // XXX:STUB
 	for(i = parameters.begin();
 			i != parameters.end(); i++)
 	{
-		cerr << "\t" <<(*i)->usageLine() + "\t" + (*i)->description() << endl;
+		cerr.width(30);
+		cerr << left << "    " + (*i)->usageLine();
+
+		cerr.width(40);
+		cerr << left << (*i)->description() << endl;
 
 	}
 
@@ -212,7 +216,14 @@ StringParameter::StringParameter(char shortOption, const char *longOption,
 StringParameter::~StringParameter() {}
 
 string StringParameter::usageLine() const {
-	return string("-") + shortOption() + "arg\t| --" + longOption() + "=arg";
+	stringstream strstr;
+
+	strstr.width(10);
+	strstr << left<< string("-") + shortOption() +"arg";
+	strstr.width(20);
+	strstr << left << "--" + longOption() + "=arg";
+
+	return strstr.str();
 }
 
 /*
