@@ -50,9 +50,12 @@ public:
 	/** Factory method that adds a new parameter of
 	 * type T to the set.
 	 *
-	 * Do not try to add non-Parameter lest you will invoke
-	 * the wrath of gcc.
+	 * This is just for convenience. It allows ParameterSet
+	 * to manage the pointers, as well as (usually) making the
+	 * code slightly easier to read.
 	 *
+	 * Do not try to add non-Parameter types lest you will invoke
+	 * the wrath of gcc's template error messages.
 	 *
 	 * @returns The created parameter. The reference is valid
 	 * 			as long as ParameterSet exists.
