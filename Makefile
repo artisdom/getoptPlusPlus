@@ -1,5 +1,5 @@
 SOURCES=getoptpp.cc test.cc
-HEADERS=getopt.h
+HEADERS=getoptpp.h
 OBJECTS=$(SOURCES:.cc=.o)
 LDFLAGS=
 CXXFLAGS=-O0 -ggdb -Wall
