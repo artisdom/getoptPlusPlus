@@ -1,4 +1,4 @@
-SOURCES=getopt.cc test.cc
+SOURCES=getoptpp.cc test.cc
 HEADERS=getopt.h
 OBJECTS=$(SOURCES:.cc=.o)
 LDFLAGS=
