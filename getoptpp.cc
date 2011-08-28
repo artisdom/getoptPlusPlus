@@ -16,7 +16,7 @@
 
 
 
-#include "getopt.h"
+#include "getoptpp.h"
 #include <stdexcept>
 
 namespace vlofgren {
@@ -252,6 +252,15 @@ void SwitchParameter::receiveSwitch() throw(Parameter::ParameterRejected) {
 void SwitchParameter::receiveArgument(const string &arg) throw(Parameter::ParameterRejected) {
 	throw UnexpectedArgument();
 }
+
+/*
+ *
+ * PODParameter specializations
+ *
+ *
+ *
+ */
+
 
 template<>
 PODParameter<string>::PODParameter(char shortOption, const char *longOption,
