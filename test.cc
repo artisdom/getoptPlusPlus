@@ -16,7 +16,7 @@
 
 
 
-#include "getopt.h"
+#include "getoptpp.h"
 #include <cstdlib>
 #include <cctype>
 #include <iostream>
@@ -145,9 +145,12 @@ int main(int argc, const char* argv[]) {
 		} else {
 			cout << "not set" << endl;
 		}
+
+		/* You can also save the return value from ParserSet::add() if
+		 * you feel the operator[].get<T>() stuff is a bit much */
 		cout << "foobar: ";
-		if(ps['i'].isSet()) {
-			cout << ps['i'].get<int>() << endl;
+		if(i.isSet()) {
+			cout << i.get<int>() << endl;
 		} else {
 			cout << "not set" << endl;
 		}
